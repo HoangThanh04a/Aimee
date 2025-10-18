@@ -11,11 +11,12 @@ import HomePage from "../pages/index";
 import NotificationPage from "../pages/notification";
 import CartPage from "../pages/cart";
 import ProfilePage from "../pages/profile";
-import CategoryCaPhe from "../pages/category-caphe";
-import CategoryTra from "../pages/category-tra";
-import CategorySuaTuoi from "../pages/category-suatuoi";
-import CategoryDoAn from "../pages/category-doan";
-import CategoryCombo from "../pages/category-combo";
+import CategoryCaphePage from "../pages/category-caphe";
+import CategoryTraPage from "../pages/category-tra";
+import CategoryTraSuaPage from "../pages/category-tra-sua";
+import CategoryBanhPage from "../pages/category-banh";
+import CategoryToppingPage from "../pages/category-topping";
+import CategoryPage from "../pages/CategoryPage";
 
 const Layout = () => {
   return (
@@ -27,11 +28,12 @@ const Layout = () => {
             <Route path="/notification" element={<NotificationPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/category/caphe" element={<CategoryCaPhe />} />
-            <Route path="/category/tra" element={<CategoryTra />} />
-            <Route path="/category/suatuoi" element={<CategorySuaTuoi />} />
-            <Route path="/category/doan" element={<CategoryDoAn />} />
-            <Route path="/category/combo" element={<CategoryCombo />} />
+            <Route path="/caphe" element={<CategoryCaphePage />} />
+            <Route path="/tra" element={<CategoryTraPage />} />
+            <Route path="/tra-sua" element={<CategoryTraSuaPage />} />
+            <Route path="/banh" element={<CategoryBanhPage />} />
+            <Route path="/topping" element={<CategoryToppingPage />} />
+            <Route path="/category/:categoryId" element={<CategoryPage />} />
           </AnimationRoutes>
         </ZMPRouter>
       </SnackbarProvider>

@@ -19,36 +19,13 @@ function HomePage() {
   });
 
   const categories = [
-    { label: "Cà phê", icon: "zi-coffee", path: "/category/caphe" },
-    { label: "Trà - Trà sữa", icon: "zi-milk-tea", path: "/category/tra" },
-    { label: "Sữa tươi đặc biệt", icon: "zi-milk", path: "/category/suatuoi" },
-    { label: "Nước đồng giá", icon: "zi-cocktail", path: "/category/nuocdonggia" },
-    { label: "Đồ ăn", icon: "zi-burger", path: "/category/doan" },
-    { label: "Combo", icon: "zi-gift", path: "/category/combo" },
+    { label: "Cà phê", icon: "zi-coffee", path: "caphe" },
+    { label: "Trà - Trà sữa", icon: "zi-milk-tea", path: "tra" },
+    { label: "Sữa tươi đặc biệt", icon: "zi-milk", path: "suatuoi" },
+    { label: "Nước đồng giá", icon: "zi-cocktail", path: "nuocdonggia" },
+    { label: "Đồ ăn", icon: "zi-burger", path: "doan" },
+    { label: "Combo", icon: "zi-gift", path: "combo" },
   ];
-
-  useEffect(() => {
-    async function fetchData() {
-      // 1. Cà phê
-      const caPheRes = await fetch("http://localhost:4000/api/products/caphe");
-      const caPhe = await caPheRes.json();
-      // 2. Trà - Trà sữa
-      const traRes = await fetch("http://localhost:4000/api/products/tra");
-      const tra = await traRes.json();
-      // 3. Sữa tươi đặc biệt
-      const suaTuoiRes = await fetch("http://localhost:4000/api/products/suatuoi");
-      const suaTuoi = await suaTuoiRes.json();
-
-      // 5. Đồ ăn
-      const doAnRes = await fetch("http://localhost:4000/api/products/doan");
-      const doAn = await doAnRes.json();
-      // 6. Combo
-      const comboRes = await fetch("http://localhost:4000/api/products/combo");
-      const combo = await comboRes.json();
-      setProducts({ caPhe, tra, suaTuoi, nuocDongGia, doAn, combo });
-    }
-    fetchData();
-  }, []);
 
   const carouselItems = [
     "Valentine: Giảm 50% cho đơn hàng trên 100K",
