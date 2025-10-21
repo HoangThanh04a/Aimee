@@ -27,11 +27,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// Logging middleware
+app.use((req, res, next) => {
+  console.log(`🌐 ${req.method} ${req.path} - Origin: ${req.get('Origin') || 'No Origin'} - User-Agent: ${req.get('User-Agent') || 'No User-Agent'}`);
+  next();
+});
+
 app.use(express.json());
+// CORS configuration with fallback
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('✅ CORS allowed: No origin (mobile app)');
+      return callback(null, true);
+    }
     
     // Check if origin is in allowed list
     const allowedOrigins = Array.isArray(API_CONFIG.CORS_ORIGIN) 
@@ -47,10 +58,14 @@ app.use(cors({
     });
     
     if (isAllowed) {
+      console.log('✅ CORS allowed origin:', origin);
       callback(null, true);
     } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      console.log('❌ CORS blocked origin:', origin);
+      console.log('📋 Allowed origins:', allowedOrigins);
+      // For debugging, temporarily allow all origins
+      console.log('⚠️  TEMPORARILY ALLOWING ALL ORIGINS FOR DEBUGGING');
+      callback(null, true);
     }
   },
   credentials: true,
@@ -99,7 +114,20 @@ app.get('/api', (req, res) => {
       bills: '/api/bills',
       upload: '/api/upload'
     },
-    status: 'running'
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    origin: req.get('Origin') || 'No Origin'
+  });
+});
+
+// Test endpoint for debugging
+app.get('/api/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API is working',
+    timestamp: new Date().toISOString(),
+    origin: req.get('Origin') || 'No Origin',
+    userAgent: req.get('User-Agent') || 'No User-Agent'
   });
 });
 

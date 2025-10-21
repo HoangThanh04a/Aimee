@@ -21,7 +21,19 @@ export const API_CONFIG = {
     'https://zaloapp.com',
     'https://*.zaloapp.com',
     'https://mini.zaloapp.com',
-    'https://*.mini.zaloapp.com'
+    'https://*.mini.zaloapp.com',
+    'https://zalo.me',
+    'https://*.zalo.me',
+    'https://chat.zalo.me',
+    'https://*.chat.zalo.me',
+    'https://oa.zalo.me',
+    'https://*.oa.zalo.me',
+    'https://developers.zalo.me',
+    'https://*.developers.zalo.me',
+    'https://mini.zaloapp.com',
+    'https://*.mini.zaloapp.com',
+    'https://zmp.zaloapp.com',
+    'https://*.zmp.zaloapp.com'
   ],
   
   // Pagination

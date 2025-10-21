@@ -1,6 +1,7 @@
 import { Box, Icon, Page, Text } from "zmp-ui";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import DebugInfo from "../components/DebugInfo";
 
 function HomePage() {
   const [carouselIdx, setCarouselIdx] = useState(0);
@@ -131,6 +132,9 @@ function HomePage() {
           ))}
         </Box>
       </Box>
+
+      {/* Debug Info - Remove this after fixing */}
+      <DebugInfo />
 
       {/* Bottom Spacing */}
       <Box className="h-16" />
