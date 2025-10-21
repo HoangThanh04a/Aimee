@@ -1,17 +1,20 @@
 // Frontend API Configuration
 export const API_CONFIG = {
   // Base URL for API calls
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://aimee-s5vs.onrender.com/api',
+  // In development (browser or Zalo simulator), always use Vite proxy '/api'
+  BASE_URL: import.meta.env.DEV
+    ? '/api'
+    : (import.meta.env.VITE_API_BASE_URL || 'https://aimee-s5vs.onrender.com/api'),
   
   // Frontend URL
   FRONTEND_URL: import.meta.env.VITE_FRONTEND_URL || 'https://aimee-s5vs.onrender.com',
   
-  // Timeout for API calls (in milliseconds)
-  TIMEOUT: 10000,
+  // Timeout for API calls (in milliseconds) - tăng timeout cho mobile
+  TIMEOUT: 30000,
   
-  // Retry configuration
-  MAX_RETRIES: 3,
-  RETRY_DELAY: 1000
+  // Retry configuration - tăng retry cho mobile
+  MAX_RETRIES: 5,
+  RETRY_DELAY: 2000
 };
 
 // API Endpoints for Frontend
@@ -66,7 +69,8 @@ export const API_ENDPOINTS = {
   ACCOUNTS: {
     BASE: `${API_CONFIG.BASE_URL}/accounts`,
     SEARCH: `${API_CONFIG.BASE_URL}/accounts/search`,
-    BY_ID: (id) => `${API_CONFIG.BASE_URL}/accounts/${id}`
+    BY_ID: (id) => `${API_CONFIG.BASE_URL}/accounts/${id}`,
+    UPSERT: `${API_CONFIG.BASE_URL}/accounts/upsert`
   },
   
   // Bills
@@ -112,5 +116,46 @@ export const apiHelpers = {
   // Get orders by user
   getOrdersByUser: (zaloId, params = {}) => {
     return apiHelpers.buildUrl(API_ENDPOINTS.ORDERS.BY_USER(zaloId), params);
+  },
+
+  // Enhanced fetch with retry logic
+  fetchWithRetry: async (url, options = {}, retries = API_CONFIG.MAX_RETRIES) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+    
+    try {
+      console.log(`🔄 Fetching: ${url}`);
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+          ...options.headers,
+        },
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error(`❌ Fetch failed (attempt ${API_CONFIG.MAX_RETRIES - retries + 1}):`, error);
+      
+      if (retries > 0 && !controller.signal.aborted) {
+        console.log(`🔄 Retrying in ${API_CONFIG.RETRY_DELAY}ms...`);
+        await new Promise(resolve => setTimeout(resolve, API_CONFIG.RETRY_DELAY));
+        return apiHelpers.fetchWithRetry(url, options, retries - 1);
+      }
+      
+      throw error;
+    }
   }
 };

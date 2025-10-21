@@ -1,12 +1,66 @@
-import { Box, Button, Icon, Page, Text, Input, Grid, Avatar, Spinner, Modal, Checkbox, Radio } from "zmp-ui";
-import { FaHome, FaBell, FaShoppingCart, FaUser, FaArrowLeft } from 'react-icons/fa';
+import React, { useEffect, useState } from "react";
+import { Box, Button, Icon, Page, Text, Input, Grid, Spinner, Modal, Checkbox, Radio } from "zmp-ui";
 import { useNavigate, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { API_ENDPOINTS, apiHelpers } from "../config/api";
+import { useSetAtom } from "jotai";
+import { addCartItemAtom } from "../state/cart";
 
 function CategoryPage() {
   const navigate = useNavigate();
   const { categoryId } = useParams();
+  
+  // CSS để đảm bảo chỉ có 1 thanh cuộn dọc, không có thanh cuộn ngang
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .product-modal .zmp-modal-content {
+        overflow: hidden !important;
+      }
+      .product-modal .zmp-modal-body {
+        overflow: hidden !important;
+      }
+      .product-modal * {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+        overflow-x: hidden !important;
+      }
+      .product-modal *::-webkit-scrollbar {
+        display: none !important;
+      }
+      .product-modal *::-webkit-scrollbar:horizontal {
+        display: none !important;
+        height: 0 !important;
+      }
+      .product-modal .main-scroll {
+        scrollbar-width: thin !important;
+        scrollbar-color: #3B82F6 #F3F4F6 !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+      }
+      .product-modal .main-scroll::-webkit-scrollbar {
+        width: 6px !important;
+        display: block !important;
+      }
+      .product-modal .main-scroll::-webkit-scrollbar:horizontal {
+        display: none !important;
+        height: 0 !important;
+      }
+      .product-modal .main-scroll::-webkit-scrollbar-track {
+        background: #F3F4F6 !important;
+        border-radius: 3px !important;
+      }
+      .product-modal .main-scroll::-webkit-scrollbar-thumb {
+        background: #3B82F6 !important;
+        border-radius: 3px !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+  const addCartItem = useSetAtom(addCartItemAtom);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,21 +74,52 @@ function CategoryPage() {
   const [quantity, setQuantity] = useState(1);
   const [basePrice, setBasePrice] = useState(0);
   const [categoryName, setCategoryName] = useState('');
+  const [iceLevel, setIceLevel] = useState('100%');
+  const [note, setNote] = useState('');
+  const FETCH_TIMEOUT_MS = 12000;
 
-  // Gọi API để lấy sản phẩm theo category
+  // Sử dụng API helper với retry logic
+  const fetchWithRetry = apiHelpers.fetchWithRetry;
+
+  const toNumberVnd = (value) => {
+    if (typeof value === 'number') return Math.round(value);
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/[^0-9.-]/g, '');
+      const n = parseFloat(cleaned);
+      return isNaN(n) ? 0 : Math.round(n);
+    }
+    return 0;
+  };
+
+  const formatVnd = (value) => {
+    return toNumberVnd(value).toLocaleString('vi-VN');
+  };
+
+  const computeSelectedToppingsTotal = () => {
+    return selectedToppings
+      .map((id) => {
+        const topping = toppings.find((t) => t.product_id === id);
+        if (!topping) return 0;
+        const prices = productSizes.filter(ps => ps.product_id === topping.product_id).map(ps => ps.price);
+        const raw = topping.price ?? (prices.length ? Math.min(...prices) : 0);
+        return toNumberVnd(raw);
+      })
+      .reduce((a, b) => a + b, 0);
+  };
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const response = await fetch(apiHelpers.getProductsByCategory(categoryId));
-        if (!response.ok) {
-          throw new Error('Không thể tải dữ liệu sản phẩm');
-        }
+        const url = apiHelpers.getProductsByCategory(categoryId);
+        console.log('🔄 Fetching products from:', url);
+        const response = await fetchWithRetry(url);
         const data = await response.json();
+        console.log('✅ Products loaded:', data.length, 'items');
         setProducts(data);
       } catch (err) {
-        setError(err.message);
-        console.error('Lỗi khi tải sản phẩm:', err);
+        console.error('❌ Lỗi khi tải sản phẩm:', err);
+        setError(`Không thể tải sản phẩm: ${err.message}`);
       } finally {
         setLoading(false);
       }
@@ -42,71 +127,79 @@ function CategoryPage() {
 
     if (categoryId) {
       fetchProducts();
+    } else {
+      setLoading(false);
+      setError('Không xác định danh mục (categoryId).');
     }
   }, [categoryId]);
 
-  // Gọi API để lấy topping cho category_id = 6
   useEffect(() => {
     const fetchToppings = async () => {
       try {
-        const response = await fetch(apiHelpers.getProductsByCategory(6));
-        if (response.ok) {
-          const data = await response.json();
-          setToppings(data);
-        }
+        const toppingCategoryId = categoryId === '5' ? 7 : 6;
+        const url = apiHelpers.getProductsByCategory(toppingCategoryId);
+        console.log('🔄 Fetching toppings from:', url);
+        const response = await fetchWithRetry(url);
+        const data = await response.json();
+        console.log('✅ Toppings loaded:', data.length, 'items');
+        setToppings(data);
       } catch (err) {
-        console.error('Lỗi khi tải topping:', err);
+        console.error('❌ Lỗi khi tải topping/sốt:', err);
+        // Không set error vì toppings là optional
       }
     };
 
-    fetchToppings();
-  }, []);
+    if (categoryId) {
+      fetchToppings();
+    }
+  }, [categoryId]);
 
-  // Gọi API để lấy product_sizes
   useEffect(() => {
     const fetchProductSizes = async () => {
       try {
-        const response = await fetch(API_ENDPOINTS.PRODUCT_SIZES.BASE);
-        if (response.ok) {
-          const data = await response.json();
-          setProductSizes(data);
-        }
+        console.log('🔄 Fetching product sizes from:', API_ENDPOINTS.PRODUCT_SIZES.BASE);
+        const response = await fetchWithRetry(API_ENDPOINTS.PRODUCT_SIZES.BASE);
+        const data = await response.json();
+        console.log('✅ Product sizes loaded:', data.length, 'items');
+        setProductSizes(data);
       } catch (err) {
-        console.error('Lỗi khi tải product_sizes:', err);
+        console.error('❌ Lỗi khi tải product_sizes:', err);
+        // Không set error vì có thể fallback
       }
     };
 
     fetchProductSizes();
   }, []);
 
-  // Gọi API để lấy sizes
   useEffect(() => {
     const fetchSizes = async () => {
       try {
-        const response = await fetch(API_ENDPOINTS.SIZES.BASE);
-        if (response.ok) {
-          const data = await response.json();
-          setSizes(data);
-        }
+        console.log('🔄 Fetching sizes from:', API_ENDPOINTS.SIZES.BASE);
+        const response = await fetchWithRetry(API_ENDPOINTS.SIZES.BASE);
+        const data = await response.json();
+        console.log('✅ Sizes loaded:', data.length, 'items');
+        setSizes(data);
       } catch (err) {
-        console.error('Lỗi khi tải sizes:', err);
+        console.error('❌ Lỗi khi tải sizes:', err);
+        // Không set error vì có thể fallback
       }
     };
 
     fetchSizes();
   }, []);
 
-  // Gọi API để lấy tên category
   useEffect(() => {
     const fetchCategoryName = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.CATEGORIES.BASE}/${categoryId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setCategoryName(data.name);
-        }
+        const url = `${API_ENDPOINTS.CATEGORIES.BASE}/${categoryId}`;
+        console.log('🔄 Fetching category name from:', url);
+        const response = await fetchWithRetry(url);
+        const data = await response.json();
+        console.log('✅ Category name loaded:', data.name);
+        setCategoryName(data.name);
       } catch (err) {
-        console.error('Lỗi khi tải tên category:', err);
+        console.error('❌ Lỗi khi tải tên category:', err);
+        setCategoryName('Danh mục');
       }
     };
 
@@ -120,15 +213,20 @@ function CategoryPage() {
     setSelectedSize(null);
     setQuantity(1);
     setBasePrice(0);
+    setIceLevel('100%');
+    setNote('');
   };
 
   const handleProductClick = (product) => {
     setSelectedProduct(product);
-    // Tự động chọn size đầu tiên và giá
-    const firstSize = productSizes.find(ps => ps.product_id === product.product_id);
-    if (firstSize) {
-      setSelectedSize(firstSize.size_id);
-      setBasePrice(firstSize.price);
+    const sizesOfProduct = productSizes.filter(ps => ps.product_id === product.product_id);
+    if (sizesOfProduct.length > 0) {
+      const lowest = sizesOfProduct.reduce((min, ps) => (ps.price < min.price ? ps : min), sizesOfProduct[0]);
+      setSelectedSize(lowest.size_id);
+      setBasePrice(lowest.price);
+    } else {
+      setSelectedSize(null);
+      setBasePrice(0);
     }
     setShowProductModal(true);
   };
@@ -140,10 +238,10 @@ function CategoryPage() {
 
   if (loading) {
     return (
-      <Page className="flex items-center justify-center min-h-screen">
+      <Page className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 to-white">
         <Box className="text-center">
-          <Spinner />
-          <Text className="mt-4">Đang tải sản phẩm...</Text>
+          <Spinner className="text-blue-600" />
+          <Text className="mt-4 text-gray-600">Đang tải sản phẩm...</Text>
         </Box>
       </Page>
     );
@@ -151,10 +249,14 @@ function CategoryPage() {
 
   if (error) {
     return (
-      <Page className="flex items-center justify-center min-h-screen">
-        <Box className="text-center">
-          <Text className="text-red-500 mb-4">{error}</Text>
-          <Button onClick={() => window.location.reload()}>
+      <Page className="flex items-center justify-center min-h-screen bg-gradient-to-b from-red-50 to-white">
+        <Box className="text-center p-6">
+          <Icon icon="zi-close-circle" size={64} className="text-red-500 mx-auto mb-4" />
+          <Text className="text-red-600 mb-4 text-lg">{error}</Text>
+          <Button 
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-6"
+          >
             Thử lại
           </Button>
         </Box>
@@ -163,43 +265,51 @@ function CategoryPage() {
   }
 
   return (
-    <Page className="bg-gray-50 min-h-screen">
-      {/* Header */}
-      <Box className="bg-white shadow-sm border-b border-gray-200">
+    <Page className="bg-gradient-to-b from-gray-50 to-white min-h-screen no-scroll-x safe-area-top safe-area-bottom">
+      {/* Header với gradient */}
+      <Box className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg sticky top-0 z-10 safe-area-top">
         <Box className="flex items-center justify-between p-4">
           <Button 
-            variant="secondary" 
+            variant="tertiary"
             size="small"
             onClick={() => navigate(-1)}
-            className="flex items-center"
+            className="text-white hover:bg-white/20 rounded-full p-2"
           >
-            <FaArrowLeft className="mr-2" />
-            Quay lại
+            <Icon icon="zi-arrow-left" size={24} />
           </Button>
-          <Text.Title size="small" className="text-center flex-1">
+          <Text.Title className="text-white font-bold title-responsive">
             {categoryName || 'Danh mục'}
           </Text.Title>
-          <Box className="w-16" /> {/* Spacer */}
+          <Button
+            variant="tertiary"
+            size="small"
+            onClick={() => navigate('/cart')}
+            className="text-white hover:bg-white/20 rounded-full p-2"
+          >
+            <Icon icon="zi-cart" size={24} />
+          </Button>
         </Box>
       </Box>
 
       {/* Products Grid */}
-      <Box className="p-4">
+      <Box className="spacing-responsive">
         {products.length === 0 ? (
-          <Box className="text-center py-8">
-            <Icon icon="zi-coffee" size={48} className="text-gray-400 mb-4" />
-            <Text className="text-gray-500">Không có sản phẩm nào</Text>
+          <Box className="text-center py-16">
+            <Box className="bg-blue-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-4">
+              <Icon icon="zi-coffee" size={48} className="text-blue-500" />
+            </Box>
+            <Text className="text-gray-500 text-responsive">Không có sản phẩm nào</Text>
           </Box>
         ) : (
-          <Grid cols={2} gap={4}>
+          <Grid cols={2} gap={4} className="grid-responsive">
             {products.map((product) => (
               <Box 
                 key={product.product_id} 
-                className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 cursor-pointer"
+                className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-xl"
                 onClick={() => handleProductClick(product)}
               >
-                {/* Product Image */}
-                <Box className="h-32 bg-gray-100 flex items-center justify-center">
+                {/* Product Image với gradient overlay */}
+                <Box className="h-32 bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center relative overflow-hidden">
                   {product.image ? (
                     <img 
                       src={product.image} 
@@ -207,37 +317,36 @@ function CategoryPage() {
                       className="h-full w-auto object-contain"
                     />
                   ) : (
-                    <Icon icon="zi-coffee" size={32} className="text-gray-400" />
+                    <Icon icon="zi-coffee" size={32} className="text-blue-300" />
                   )}
+                  <Box className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1">
+                    <Icon icon="zi-star" size={12} className="text-yellow-500" />
+                  </Box>
                 </Box>
                 
                 {/* Product Info */}
                 <Box className="p-3">
-                  <Text.Title size="small" className="mb-1 line-clamp-2">
+                  <Text.Title size="small" className="mb-1 font-bold line-clamp-2 text-gray-800">
                     {product.name}
                   </Text.Title>
                   
                   {product.description && (
-                    <Text size="xSmall" className="text-gray-600 mb-2 line-clamp-2">
+                    <Text size="xSmall" className="text-gray-500 mb-3 line-clamp-2">
                       {product.description}
                     </Text>
                   )}
                   
-                  <Box className="flex justify-between items-center">
-                    <Text className="font-bold text-green-600">
-                      Thêm vào giỏ hàng
-                    </Text>
-                    <Button 
-                      size="small" 
-                      className="bg-blue-500 text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleProductClick(product);
-                      }}
-                    >
-                      <Icon icon="zi-plus" size={16} />
-                    </Button>
-                  </Box>
+                  <Button 
+                    size="small" 
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg py-2 flex items-center justify-center hover:from-blue-700 hover:to-purple-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleProductClick(product);
+                    }}
+                  >
+                    <Icon icon="zi-plus-circle" size={18} className="mr-2" />
+                    Thêm vào giỏ
+                  </Button>
                 </Box>
               </Box>
             ))}
@@ -249,13 +358,15 @@ function CategoryPage() {
       <Modal
         visible={showProductModal}
         onClose={handleCloseModal}
-        title={selectedProduct?.name || ''}
-        className="max-h-[90vh] overflow-y-auto"
+        title=""
+        className="product-modal"
       >
-        <Box className="p-4">
-          {/* Product Image */}
-          <Box className="mb-4">
-            <Box className="h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+        <Box 
+          className="max-h-[85vh] overflow-y-auto overflow-x-hidden main-scroll"
+        >
+          {/* Product Image Header */}
+          <Box className="relative">
+            <Box className="h-48 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
               {selectedProduct?.image ? (
                 <img 
                   src={selectedProduct.image} 
@@ -263,113 +374,214 @@ function CategoryPage() {
                   className="h-full w-auto object-contain"
                 />
               ) : (
-                <Icon icon="zi-coffee" size={48} className="text-gray-400" />
+                <Icon icon="zi-coffee" size={48} className="text-blue-400" />
               )}
             </Box>
-          </Box>
-
-          {/* Price */}
-          <Text className="text-lg font-bold text-green-600 mb-4">
-            {basePrice.toLocaleString()} ₫
-          </Text>
-
-          {/* Size Selection */}
-          <Box className="mb-4">
-            <Text className="font-semibold mb-2">Size</Text>
-            <Box className="space-y-2">
-              {productSizes
-                .filter(ps => ps.product_id === selectedProduct?.product_id)
-                .map((productSize) => {
-                  const size = sizes.find(s => s.size_id === productSize.size_id);
-                  return (
-                    <Radio
-                      key={productSize.size_id}
-                      checked={selectedSize === productSize.size_id}
-                      onChange={() => {
-                        setSelectedSize(productSize.size_id);
-                        setBasePrice(productSize.price);
-                      }}
-                      label={`${size?.size_name || size?.name} ${size?.volume || ''} - ${productSize.price.toLocaleString()} ₫`}
-                    />
-                  );
-                })}
-            </Box>
-          </Box>
-
-          {/* Ice Selection */}
-          <Box className="mb-4">
-            <Text className="font-semibold mb-2">Lượng Đá</Text>
-            <Button variant="secondary" className="w-full justify-between bg-gray-100 border-gray-300">
-              Chọn 1
-              <Icon icon="zi-chevron-down" />
+            <Button
+              variant="tertiary"
+              size="small"
+              onClick={handleCloseModal}
+              className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg"
+            >
+              <Icon icon="zi-close" size={24} />
             </Button>
           </Box>
 
-          {/* Quantity */}
-          <Box className="mb-4">
-            <Text className="font-semibold mb-2">Số lượng</Text>
-            <Box className="flex items-center justify-between">
-              <Button 
-                size="small" 
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-10 h-10 rounded-full"
-              >
-                -
-              </Button>
-              <Text className="text-lg font-semibold">{quantity}</Text>
-              <Button 
-                size="small" 
-                onClick={() => setQuantity(quantity + 1)}
-                className="w-10 h-10 rounded-full"
-              >
-                +
-              </Button>
-            </Box>
-          </Box>
-
-          {/* Toppings Selection */}
-          <Box className="mb-6">
-            <Text className="font-semibold mb-3">Topping</Text>
-            <Box className="space-y-2">
-              {toppings.map((topping) => (
-                <Box key={topping.product_id} className="flex items-center justify-between py-2 border-b border-gray-100">
-                  <Checkbox
-                    checked={selectedToppings.includes(topping.product_id)}
-                    onChange={(checked) => {
-                      if (checked) {
-                        setSelectedToppings([...selectedToppings, topping.product_id]);
-                      } else {
-                        setSelectedToppings(selectedToppings.filter(id => id !== topping.product_id));
-                      }
-                    }}
-                    label={topping.name}
-                  />
-                  <Text className="text-green-600 font-semibold">
-                    +{(topping.price || 0).toLocaleString()} ₫
+          <Box className="p-4">
+            {/* Product Name & Price */}
+            <Box className="mb-4">
+              <Text.Title className="font-bold text-xl mb-2 text-gray-800">
+                {selectedProduct?.name}
+              </Text.Title>
+              <Box className="flex items-center gap-2">
+                <Text className="text-2xl font-bold text-blue-600">
+                  {formatVnd(basePrice)} ₫
+                </Text>
+                {selectedProduct?.description && (
+                  <Text size="xSmall" className="text-gray-500 line-clamp-2">
+                    {selectedProduct.description}
                   </Text>
-                </Box>
-              ))}
+                )}
+              </Box>
             </Box>
-          </Box>
 
-          {/* Add to Cart Button */}
-          <Button 
-            className="w-full bg-blue-500 text-white py-3 text-lg font-semibold"
-            onClick={() => {
-              // Logic thêm vào giỏ hàng
-              console.log('Added to cart:', {
-                product: selectedProduct,
-                size: selectedSize,
-                quantity,
-                toppings: selectedToppings,
-                basePrice
-              });
-              handleCloseModal();
-            }}
-          >
-            <Icon icon="zi-shopping-cart" className="mr-2" />
-            Thêm vào giỏ hàng +{basePrice.toLocaleString()} ₫
-          </Button>
+            {/* Size Selection */}
+            <Box className="mb-4 bg-gray-50 rounded-xl p-4">
+              <Text className="font-bold mb-3 flex items-center text-gray-800">
+                <Icon icon="zi-resize" className="mr-2 text-blue-600" />
+                Chọn size
+              </Text>
+              <Box className="space-y-2" style={{ overflow: 'visible' }}>
+                {productSizes
+                  .filter(ps => ps.product_id === selectedProduct?.product_id)
+                  .map((productSize) => {
+                    const size = sizes.find(s => s.size_id === productSize.size_id);
+                    return (
+                      <Box 
+                        key={productSize.size_id} 
+                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          selectedSize === productSize.size_id 
+                            ? 'border-blue-600 bg-blue-50' 
+                            : 'border-gray-200 hover:border-blue-300'
+                        }`}
+                        onClick={() => {
+                          setSelectedSize(productSize.size_id);
+                          setBasePrice(toNumberVnd(productSize.price));
+                        }}
+                      >
+                        <Radio
+                          checked={selectedSize === productSize.size_id}
+                          label={`${size?.size_name || size?.name} ${size?.volume || ''} - ${formatVnd(productSize.price)} ₫`}
+                        />
+                      </Box>
+                    );
+                  })}
+              </Box>
+            </Box>
+
+            {/* Ice Level */}
+            <Box className="mb-4 bg-gray-50 rounded-xl p-4">
+              <Text className="font-bold mb-3 flex items-center text-gray-800">
+                <Icon icon="zi-snowflake" className="mr-2 text-blue-600" />
+                Lượng đá
+              </Text>
+              <Box className="flex gap-2">
+                {['100%','75%','50%','25%','0%'].map((level) => (
+                  <Button
+                    key={level}
+                    size="small"
+                    onClick={() => setIceLevel(level)}
+                    className={`flex-1 rounded-lg font-semibold transition-all ${
+                      iceLevel === level 
+                        ? 'bg-blue-600 text-white shadow-lg' 
+                        : 'bg-white text-gray-600 border border-gray-200'
+                    }`}
+                  >
+                    {level}
+                  </Button>
+                ))}
+              </Box>
+            </Box>
+
+            {/* Toppings */}
+            {toppings.length > 0 && (
+              <Box className="mb-4 bg-gray-50 rounded-xl p-4">
+                <Text className="font-bold mb-3 flex items-center text-gray-800">
+                  <Icon icon="zi-plus-circle" className="mr-2 text-blue-600" />
+                  {categoryId === '5' ? 'Chọn sốt' : 'Chọn topping'}
+                </Text>
+                <Box className="space-y-2" style={{ overflow: 'visible' }}>
+                  {toppings.map((topping) => {
+                    const toppingPrices = productSizes
+                      .filter(ps => ps.product_id === topping.product_id)
+                      .map(ps => ps.price);
+                    const resolvedToppingPrice = toNumberVnd(topping.price ?? (toppingPrices.length ? Math.min(...toppingPrices) : 0));
+                    return (
+                      <Box 
+                        key={topping.product_id} 
+                        className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          selectedToppings.includes(topping.product_id)
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-green-300'
+                        }`}
+                        onClick={() => {
+                          setSelectedToppings((prev) => {
+                            if (prev.includes(topping.product_id)) {
+                              return prev.filter((id) => id !== topping.product_id);
+                            }
+                            return [...prev, topping.product_id];
+                          });
+                        }}
+                      >
+                        <Checkbox
+                          checked={selectedToppings.includes(topping.product_id)}
+                          label={topping.name}
+                        />
+                        <Text className="text-green-600 font-bold">
+                          +{formatVnd(resolvedToppingPrice)} ₫
+                        </Text>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              </Box>
+            )}
+
+            {/* Quantity */}
+            <Box className="mb-4 bg-gray-50 rounded-xl p-4">
+              <Text className="font-bold mb-3 flex items-center text-gray-800">
+                <Icon icon="zi-list" className="mr-2 text-blue-600" />
+                Số lượng
+              </Text>
+              <Box className="flex items-center justify-center gap-6">
+                <Button 
+                  size="large"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-12 h-12 rounded-full bg-white border-2 border-blue-600 text-blue-600 font-bold text-xl shadow-md hover:bg-blue-50"
+                >
+                  −
+                </Button>
+                <Text className="text-3xl font-bold text-blue-600 min-w-[60px] text-center">
+                  {quantity}
+                </Text>
+                <Button 
+                  size="large"
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="w-12 h-12 rounded-full bg-blue-600 text-white font-bold text-xl shadow-md hover:bg-blue-700"
+                >
+                  +
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Note */}
+            <Box className="mb-4">
+              <Text className="font-bold mb-2 flex items-center text-gray-800">
+                <Icon icon="zi-note" className="mr-2 text-blue-600" />
+                Ghi chú
+              </Text>
+              <Input
+                placeholder="Thêm yêu cầu đặc biệt..."
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="w-full rounded-lg border-2 border-gray-200 focus:border-blue-600 p-3"
+              />
+            </Box>
+
+            {/* Add to Cart Button */}
+            <Button 
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 text-lg font-bold rounded-xl shadow-lg flex items-center justify-center"
+              onClick={() => {
+                if (!selectedProduct) return;
+                const currentSize = sizes.find(s => s.size_id === selectedSize);
+                const toppingDetails = toppings
+                  .filter(t => selectedToppings.includes(t.product_id))
+                  .map(t => {
+                    const tp = productSizes.filter(ps => ps.product_id === t.product_id).map(ps => ps.price);
+                    const raw = t.price ?? (tp.length ? Math.min(...tp) : 0);
+                    const price = toNumberVnd(raw);
+                    return { productId: t.product_id, name: t.name, price };
+                  });
+                const toppingsTotal = toppingDetails.reduce((sum, t) => sum + toNumberVnd(t.price), 0);
+                const unitPrice = toNumberVnd(basePrice) + toppingsTotal;
+                addCartItem({
+                  id: `${selectedProduct.product_id}-${selectedSize}-${Date.now()}`,
+                  product: selectedProduct,
+                  sizeId: selectedSize,
+                  sizeLabel: currentSize ? `${currentSize.size_name || currentSize.name}` : '',
+                  unitPrice,
+                  quantity,
+                  toppings: toppingDetails,
+                  note: note.trim(),
+                });
+                handleCloseModal();
+                navigate('/cart');
+              }}
+            >
+              <Icon icon="zi-cart" size={24} className="mr-2" />
+              Thêm vào giỏ • {formatVnd((toNumberVnd(basePrice) + computeSelectedToppingsTotal()) * quantity)} ₫
+            </Button>
+          </Box>
         </Box>
       </Modal>
     </Page>

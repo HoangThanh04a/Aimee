@@ -29,8 +29,33 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 app.use(cors({
-  origin: API_CONFIG.CORS_ORIGIN,
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    const allowedOrigins = Array.isArray(API_CONFIG.CORS_ORIGIN) 
+      ? API_CONFIG.CORS_ORIGIN 
+      : [API_CONFIG.CORS_ORIGIN];
+    
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin.includes('*')) {
+        const pattern = allowedOrigin.replace(/\*/g, '.*');
+        return new RegExp(`^${pattern}$`).test(origin);
+      }
+      return allowedOrigin === origin;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Cấu hình multer lưu vào static
@@ -133,6 +158,7 @@ app.get('/api/accounts', accountController.getAccounts);
 app.get('/api/accounts/search', accountController.searchAccounts);
 app.get('/api/accounts/:id', accountController.getAccountById);
 app.post('/api/accounts', accountController.createAccount);
+app.post('/api/accounts/upsert', accountController.createOrUpdateAccount); // Endpoint cho Zalo Mini App
 app.put('/api/accounts/:id', accountController.updateAccount);
 app.delete('/api/accounts/:id', accountController.deleteAccount);
 

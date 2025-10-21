@@ -15,8 +15,14 @@ export const API_CONFIG = {
   UPLOAD_DIR: process.env.UPLOAD_DIR || '../src/static',
   MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE) || 5242880, // 5MB
   
-  // CORS
-  CORS_ORIGIN: process.env.CORS_ORIGIN || 'https://aimee-s5vs.onrender.com',
+  // CORS - Allow multiple origins for Zalo Mini App
+  CORS_ORIGIN: process.env.CORS_ORIGIN || [
+    'https://aimee-s5vs.onrender.com',
+    'https://zaloapp.com',
+    'https://*.zaloapp.com',
+    'https://mini.zaloapp.com',
+    'https://*.mini.zaloapp.com'
+  ],
   
   // Pagination
   DEFAULT_PAGE_SIZE: parseInt(process.env.DEFAULT_PAGE_SIZE) || 20,

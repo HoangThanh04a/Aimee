@@ -39,6 +39,50 @@ export const createAccount = async (req, res) => {
   }
 };
 
+// Tạo hoặc cập nhật account (upsert) - dành cho Zalo Mini App
+export const createOrUpdateAccount = async (req, res) => {
+  const { zalo_id, name, avatar, phone, address, role = 'user' } = req.body;
+  
+  if (!zalo_id) {
+    return res.status(400).json({ error: "zalo_id là bắt buộc" });
+  }
+
+  try {
+    // Kiểm tra xem account đã tồn tại chưa
+    const existingAccount = await pool.query(
+      "SELECT * FROM accounts WHERE zalo_id = $1",
+      [zalo_id]
+    );
+
+    if (existingAccount.rows.length > 0) {
+      // Cập nhật account hiện có
+      const result = await pool.query(
+        `UPDATE accounts 
+         SET name = COALESCE($2, name), 
+             avatar = COALESCE($3, avatar),
+             phone = COALESCE($4, phone), 
+             address = COALESCE($5, address),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE zalo_id = $1 
+         RETURNING *`,
+        [zalo_id, name, avatar, phone, address]
+      );
+      res.json(result.rows[0]);
+    } else {
+      // Tạo account mới
+      const result = await pool.query(
+        `INSERT INTO accounts (zalo_id, name, avatar, phone, address, role)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [zalo_id, name, avatar, phone, address, role]
+      );
+      res.status(201).json(result.rows[0]);
+    }
+  } catch (err) {
+    console.error("❌ Lỗi tạo/cập nhật account:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Cập nhật account
 export const updateAccount = async (req, res) => {
   const { id } = req.params;

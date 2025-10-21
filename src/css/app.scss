@@ -1,14 +1,108 @@
-.page {
-  padding: 16px 16px 96px 16px;
+/* Global responsive styles for all pages */
+* {
+  box-sizing: border-box;
 }
 
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+/* Ensure all pages fit screen properly */
+.page {
+  padding: 16px 16px 96px 16px;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Responsive containers */
 .section-container {
   padding: 16px;
   background: #ffffff;
   border-radius: 8px;
   margin-bottom: 24px;
+  width: 100%;
+  max-width: 100%;
 }
 
+/* Responsive text */
+.text-responsive {
+  font-size: clamp(14px, 4vw, 18px);
+  line-height: 1.4;
+}
+
+.title-responsive {
+  font-size: clamp(16px, 5vw, 24px);
+  line-height: 1.3;
+}
+
+/* Responsive buttons */
+.btn-responsive {
+  min-height: 44px; /* iOS touch target minimum */
+  padding: 12px 16px;
+  font-size: clamp(14px, 4vw, 16px);
+}
+
+/* Responsive images */
+.img-responsive {
+  max-width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+/* Responsive grid */
+.grid-responsive {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+/* Safe area for notched devices */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ZMP-UI overrides for better responsive */
 .zaui-list-item {
   cursor: pointer;
+  min-height: 44px; /* Touch target */
+}
+
+.zaui-modal {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.zaui-button {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+/* Prevent horizontal scroll */
+.no-scroll-x {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Responsive spacing */
+.spacing-responsive {
+  padding: clamp(8px, 2vw, 16px);
+  margin: clamp(4px, 1vw, 8px);
 }
