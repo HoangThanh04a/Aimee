@@ -248,6 +248,11 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   });
 });
 
+// Root route for domain validation
+app.get('/', (req, res) => {
+  res.status(200).send('Aimee API is running');
+});
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('🚨 Global Error Handler:', err);
@@ -266,11 +271,6 @@ app.use('*', (req, res) => {
     path: req.originalUrl,
     method: req.method
   });
-});
-
-// Root route for domain validation
-app.get('/', (req, res) => {
-  res.status(200).send('Aimee API is running');
 });
 
 // Start server
