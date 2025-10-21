@@ -14,13 +14,26 @@ function DebugInfo() {
       console.log('🌐 Current origin:', window.location.origin);
       console.log('📱 User Agent:', navigator.userAgent);
       
-      const response = await apiHelpers.fetchWithRetry('/api/test');
-      const data = await response.json();
+      // Test multiple endpoints
+      const endpoints = ['/api/test', '/api/health', '/api/cors-test'];
+      const results = {};
       
-      console.log('✅ API Test Response:', data);
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔄 Testing ${endpoint}...`);
+          const response = await apiHelpers.fetchWithRetry(endpoint);
+          const data = await response.json();
+          results[endpoint] = { success: true, data };
+          console.log(`✅ ${endpoint} success:`, data);
+        } catch (error) {
+          results[endpoint] = { success: false, error: error.message };
+          console.error(`❌ ${endpoint} failed:`, error);
+        }
+      }
+      
       setDebugInfo({
         success: true,
-        data,
+        results,
         timestamp: new Date().toISOString(),
         apiBaseUrl: API_CONFIG.BASE_URL,
         currentOrigin: window.location.origin,
@@ -76,14 +89,24 @@ function DebugInfo() {
             <strong>Timestamp:</strong> {debugInfo.timestamp}
           </Text>
           
-          {debugInfo.success ? (
+          {debugInfo.success && debugInfo.results ? (
             <Box>
-              <Text size="small" className="block mb-1">
-                <strong>Server Origin:</strong> {debugInfo.data?.origin || 'No Origin'}
-              </Text>
-              <Text size="small" className="block mb-1">
-                <strong>Server Message:</strong> {debugInfo.data?.message || 'No Message'}
-              </Text>
+              {Object.entries(debugInfo.results).map(([endpoint, result]) => (
+                <Box key={endpoint} className="mb-2 p-2 bg-gray-50 rounded">
+                  <Text size="small" className="font-bold">
+                    {endpoint}: {result.success ? '✅' : '❌'}
+                  </Text>
+                  {result.success ? (
+                    <Text size="xSmall" className="text-green-600">
+                      {result.data?.message || 'Success'}
+                    </Text>
+                  ) : (
+                    <Text size="xSmall" className="text-red-600">
+                      {result.error}
+                    </Text>
+                  )}
+                </Box>
+              ))}
             </Box>
           ) : (
             <Text size="small" className="block text-red-600">

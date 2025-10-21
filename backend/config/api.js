@@ -18,6 +18,8 @@ export const API_CONFIG = {
   // CORS - Allow multiple origins for Zalo Mini App
   CORS_ORIGIN: process.env.CORS_ORIGIN || [
     'https://aimee-s5vs.onrender.com',
+    'https://h5.zdn.vn',  // Zalo Mini App actual domain
+    'https://*.h5.zdn.vn',
     'https://zaloapp.com',
     'https://*.zaloapp.com',
     'https://mini.zaloapp.com',
@@ -30,8 +32,6 @@ export const API_CONFIG = {
     'https://*.oa.zalo.me',
     'https://developers.zalo.me',
     'https://*.developers.zalo.me',
-    'https://mini.zaloapp.com',
-    'https://*.mini.zaloapp.com',
     'https://zmp.zaloapp.com',
     'https://*.zmp.zaloapp.com'
   ],

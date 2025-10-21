@@ -52,9 +52,18 @@ app.use(cors({
     const isAllowed = allowedOrigins.some(allowedOrigin => {
       if (allowedOrigin.includes('*')) {
         const pattern = allowedOrigin.replace(/\*/g, '.*');
-        return new RegExp(`^${pattern}$`).test(origin);
+        const regex = new RegExp(`^${pattern}$`);
+        const matches = regex.test(origin);
+        if (matches) {
+          console.log(`✅ CORS pattern match: ${allowedOrigin} matches ${origin}`);
+        }
+        return matches;
       }
-      return allowedOrigin === origin;
+      const exactMatch = allowedOrigin === origin;
+      if (exactMatch) {
+        console.log(`✅ CORS exact match: ${allowedOrigin} === ${origin}`);
+      }
+      return exactMatch;
     });
     
     if (isAllowed) {
@@ -143,6 +152,21 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
+  });
+});
+
+// CORS test endpoint
+app.get('/api/cors-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'CORS is working!',
+    origin: req.get('Origin') || 'No Origin',
+    timestamp: new Date().toISOString(),
+    headers: {
+      origin: req.get('Origin'),
+      userAgent: req.get('User-Agent'),
+      referer: req.get('Referer')
+    }
   });
 });
 
