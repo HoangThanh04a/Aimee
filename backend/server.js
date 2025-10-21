@@ -268,6 +268,11 @@ app.use('*', (req, res) => {
   });
 });
 
+// Root route for domain validation
+app.get('/', (req, res) => {
+  res.status(200).send('Aimee API is running');
+});
+
 // Start server
 app.listen(API_CONFIG.PORT, () => {
   console.log(`✅ Server đang chạy trên cổng ${API_CONFIG.PORT}`);
