@@ -122,12 +122,27 @@ app.get('/api', (req, res) => {
 
 // Test endpoint for debugging
 app.get('/api/test', (req, res) => {
-  res.json({
-    success: true,
-    message: 'API is working',
+  try {
+    res.json({
+      success: true,
+      message: 'API is working',
+      timestamp: new Date().toISOString(),
+      origin: req.get('Origin') || 'No Origin',
+      userAgent: req.get('User-Agent') || 'No User-Agent',
+      server: 'Aimee Coffee API v1.0.0'
+    });
+  } catch (error) {
+    console.error('Error in /api/test:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Simple health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
     timestamp: new Date().toISOString(),
-    origin: req.get('Origin') || 'No Origin',
-    userAgent: req.get('User-Agent') || 'No User-Agent'
+    uptime: process.uptime()
   });
 });
 
@@ -209,10 +224,31 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   });
 });
 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('🚨 Global Error Handler:', err);
+  res.status(500).json({ 
+    error: 'Internal Server Error',
+    message: err.message,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  console.log(`❌ 404 - Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.originalUrl,
+    method: req.method
+  });
+});
+
 // Start server
 app.listen(API_CONFIG.PORT, () => {
   console.log(`✅ Server đang chạy trên cổng ${API_CONFIG.PORT}`);
   console.log(`🌐 API Base URL: ${API_CONFIG.BASE_URL}`);
   console.log(`📁 Upload Directory: ${API_CONFIG.UPLOAD_DIR}`);
   console.log(`🔗 CORS Origin: ${API_CONFIG.CORS_ORIGIN}`);
+  console.log(`🚀 Server started at: ${new Date().toISOString()}`);
 }); 

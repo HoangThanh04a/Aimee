@@ -55,25 +55,24 @@ export const createOrUpdateAccount = async (req, res) => {
     );
 
     if (existingAccount.rows.length > 0) {
-      // Cập nhật account hiện có
+      // Cập nhật account hiện có (không có avatar column)
       const result = await pool.query(
         `UPDATE accounts 
          SET name = COALESCE($2, name), 
-             avatar = COALESCE($3, avatar),
-             phone = COALESCE($4, phone), 
-             address = COALESCE($5, address),
+             phone = COALESCE($3, phone), 
+             address = COALESCE($4, address),
              updated_at = CURRENT_TIMESTAMP
          WHERE zalo_id = $1 
          RETURNING *`,
-        [zalo_id, name, avatar, phone, address]
+        [zalo_id, name, phone, address]
       );
       res.json(result.rows[0]);
     } else {
-      // Tạo account mới
+      // Tạo account mới (không có avatar column)
       const result = await pool.query(
-        `INSERT INTO accounts (zalo_id, name, avatar, phone, address, role)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [zalo_id, name, avatar, phone, address, role]
+        `INSERT INTO accounts (zalo_id, name, phone, address, role)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [zalo_id, name, phone, address, role]
       );
       res.status(201).json(result.rows[0]);
     }
